@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Mood → Scripture (Book of Mormon)</title>
+<style>
+  :root{
+    --bg:#0f1222; --card:#171a2e; --muted:#9397b2; --text:#e9ecff;
+    --accent:#8fd3fe; --accent2:#a78bfa; --ok:#8ef0b5; --danger:#ff9aa2;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    color:var(--text); background:
+      radial-gradient(1000px 600px at 10% -10%, #1b1f3a 10%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #1a1e33 10%, transparent 60%),
+      linear-gradient(180deg, #0c0f20, #0f1222 60%);
+    min-height:100dvh; display:grid; place-items:center; padding:32px;
+  }
+  .app{width:min(980px, 100%); display:grid; gap:16px}
+  header{
+    display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  }
+  h1{font-size:clamp(20px, 3.4vw, 34px); margin:0; letter-spacing:0.2px}
+  .sub{color:var(--muted); font-size:14px}
+  .card{
+    background:linear-gradient(180deg, #141730, #141730dd);
+    border:1px solid #24294f; border-radius:14px; padding:18px;
+    box-shadow: 0 10px 30px #0008, inset 0 1px 0 #2a2f5a;
+  }
+  .controls{display:grid; gap:12px}
+  .row{display:grid; gap:12px; grid-template-columns:1fr 1fr}
+  @media (max-width:720px){ .row{grid-template-columns:1fr} }
+  label{font-size:13px; color:var(--muted); margin-bottom:6px; display:block}
+  select, input, button{
+    width:100%; padding:12px 13px; border-radius:10px; border:1px solid #2a2f5a;
+    background:#101432; color:var(--text); outline:none;
+  }
+  select:focus, input:focus{border-color:var(--accent)}
+  button{
+    cursor:pointer; border:1px solid #2d315f; background:linear-gradient(180deg, #1c2045, #141a3b);
+  }
+  button:hover{border-color:#3b4182}
+  .actions{display:flex; gap:10px; flex-wrap:wrap}
+  .pill{
+    font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2c3160; color:var(--muted);
+  }
+  .result h2{margin:.1rem 0 .4rem; font-size:20px}
+  .ref{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+       font-size:13px; color:var(--accent)}
+  .why{color:#cbd2ff; margin:.25rem 0 .5rem; font-size:14px}
+  .excerpt{
+    font-style:italic; color:#e2e6ff; background:#101334; border-left:3px solid var(--accent2);
+    padding:10px 12px; border-radius:8px; margin:.4rem 0 .6rem;
+  }
+  .footer{color:var(--muted); font-size:12px}
+  .grid-quick{display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); margin-top:6px}
+  .quick-btn{font-size:12px; padding:10px}
+  .ok{color:var(--ok)}
+  .warn{color:var(--danger)}
+  .bar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .spacer{flex:1}
+  .toggle{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
+  .small{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1 id="t_title">Mood → Book of Mormon Scripture</h1>
+        <div class="sub" id="t_sub">Pick a mood or type your own. Get a verse with a one-line why.</div>
+      </div>
+      <div class="bar">
+        <label for="lang" class="small" id="t_lang_label">Language</label>
+        <select id="lang" title="Language">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+        </select>
+        <div class="pill">20 moods • audio • daily</div>
+      </div>
+    </header>
+
+    <section class="card controls">
+      <div class="row">
+        <div>
+          <label for="moodPick" id="t_choose">Choose a mood</label>
+          <select id="moodPick"></select>
+        </div>
+        <div>
+          <label for="moodCustom" id="t_type">…or type your mood (e.g., “burned out”, “jealous”)</label>
+          <input id="moodCustom" placeholder="Type any mood/feeling"/>
+        </div>
+      </div>
+      <div class="bar">
+        <div class="actions">
+          <button id="recommendBtn">Recommend Scripture</button>
+          <button id="randomBtn">I’m Feeling Lucky</button>
+          <button id="clearBtn">Reset</button>
+          <button id="speakBtn">🔊 Play</button>
+          <button id="stopBtn">⏹ Stop</button>
+        </div>
+        <div class="spacer"></div>
+        <label class="toggle">
+          <input type="checkbox" id="dailyToggle" checked/>
+          <span id="t_daily">Daily Verse (auto-show)</span>
+        </label>
+      </div>
+
+      <div class="grid-quick" id="quickGrid"></div>
+      <div class="small" id="t_note">
+        Excerpts are brief English snippets for fair use. Use “Open” to read the full passage in your selected language.
+      </div>
+    </section>
+
+    <section class="card result" id="result" hidden>
+      <h2 id="moodTitle"></h2>
+      <div class="why" id="why"></div>
+      <div class="ref" id="ref"></div>
+      <div class="excerpt" id="quote"></div>
+      <div class="actions">
+        <button id="copyBtn">Copy Ref</button>
+        <button id="openBtn">Open (official site)</button>
+        <span id="copied" class="ok" hidden>Copied!</span>
+        <span id="ttsWarn" class="warn" hidden>Speech not available on this device.</span>
+      </div>
+      <div class="footer" id="t_footer">
+        Tip: Tap 🔊 to hear the title, why-this-fits note, and the verse reference.
+      </div>
+    </section>
+  </main>
+
+<script>
+/* =========================
+   Data: 20 moods with EN + ES + PT "why". Excerpts are short English lines.
+   Link language is switched via ?lang=spa / ?lang=por when applicable.
+   ========================= */
+const MOODS = [
+  {
+    key:"Anxious / Worried",
+    synonyms:["anxious","worry","worried","uneasy","nervous","panic","panicky"],
+    ref:"Alma 36:3",
+    why_en:"Trust in God through trials; He supports those who put their trust in Him.",
+    why_es:"Confía en Dios en las pruebas; Él sostiene a quienes confían en Él.",
+    why_pt:"Confie em Deus nas provações; Ele sustenta os que confiam Nele.",
+    excerpt:"“Whosoever shall put their trust in God shall be supported in their trials.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/36.3"
+  },
+  {
+    key:"Discouraged / Down",
+    synonyms:["discouraged","down","blue","sad","melancholy"],
+    ref:"2 Nephi 4:28–30",
+    why_en:"Nephi turns discouragement into trust and resolve to rely on the Lord.",
+    why_es:"Nefi convierte el desaliento en confianza y decisión de depender del Señor.",
+    why_pt:"Néfi transforma o desânimo em confiança e decisão de depender do Senhor.",
+    excerpt:"“Awake, my soul… Rejoice, O my heart.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/2-ne/4.28-30"
+  },
+  {
+    key:"Lonely",
+    synonyms:["lonely","alone","isolated"],
+    ref:"Mosiah 24:14",
+    why_en:"The Lord knows your burdens and can lighten them.",
+    why_es:"El Señor conoce tus cargas y puede aligerarlas.",
+    why_pt:"O Senhor conhece seus fardos e pode aliviá-los.",
+    excerpt:"“I will also ease the burdens which are upon your shoulders.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/mosiah/24.14"
+  },
+  {
+    key:"Afraid",
+    synonyms:["afraid","fear","scared","terrified"],
+    ref:"Helaman 5:12",
+    why_en:"Build on Christ and fears lose their power.",
+    why_es:"Edifica sobre Cristo y el temor pierde poder.",
+    why_pt:"Edifique em Cristo e o medo perde o poder.",
+    excerpt:"“Build your foundation upon the rock of our Redeemer.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/hel/5.12"
+  },
+  {
+    key:"Tempted",
+    synonyms:["tempted","temptation","urge"],
+    ref:"Alma 13:28",
+    why_en:"Prayer and humility help you resist temptation.",
+    why_es:"La oración y la humildad ayudan a resistir la tentación.",
+    why_pt:"A oração e a humildade ajudam a resistir à tentação.",
+    excerpt:"“Humble yourselves and continue in prayer, that ye may not be tempted.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/13.28"
+  },
+  {
+    key:"Guilty / Ashamed",
+    synonyms:["guilty","shame","ashamed","remorse"],
+    ref:"Mosiah 4:2–3",
+    why_en:"Through Christ, forgiveness brings peace of conscience.",
+    why_es:"Por medio de Cristo, el perdón trae paz a la conciencia.",
+    why_pt:"Por meio de Cristo, o perdão traz paz à consciência.",
+    excerpt:"“They were filled with joy, having received a remission of their sins.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/mosiah/4.2-3"
+  },
+  {
+    key:"Repentant",
+    synonyms:["repentant","repent","sorry"],
+    ref:"Alma 36:18–20",
+    why_en:"Turning to Jesus replaces pain with exquisite joy.",
+    why_es:"Volverse a Jesús reemplaza el dolor con un gozo exquisito.",
+    why_pt:"Voltar-se para Jesus substitui a dor por júbilo exquisito.",
+    excerpt:"“My joy was as exquisite as was my pain.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/36.18-20"
+  },
+  {
+    key:"Grieving / Loss",
+    synonyms:["grieving","grief","loss","mourning","bereaved","bereavement"],
+    ref:"Alma 40:11–12",
+    why_en:"Hope and comfort about our loved ones after death.",
+    why_es:"Esperanza y consuelo por nuestros seres queridos tras la muerte.",
+    why_pt:"Esperança e consolo quanto a nossos queridos após a morte.",
+    excerpt:"“The spirits of the righteous are received into a state of paradise.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/40.11-12"
+  },
+  {
+    key:"Sick / In Pain",
+    synonyms:["sick","ill","pain","hurting"],
+    ref:"Alma 7:11–12",
+    why_en:"Christ suffered pains and sicknesses to succor you.",
+    why_es:"Cristo sufrió dolores y enfermedades para socorrerte.",
+    why_pt:"Cristo sofreu dores e enfermidades para socorrê-lo.",
+    excerpt:"“He will take upon him the pains and the sicknesses of his people.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/7.11-12"
+  },
+  {
+    key:"Angry",
+    synonyms:["angry","anger","mad","furious","resentful"],
+    ref:"3 Nephi 12:44",
+    why_en:"Christ teaches to love and pray for those who oppose us.",
+    why_es:"Cristo enseña a amar y orar por quienes nos oponen.",
+    why_pt:"Cristo ensina a amar e orar pelos que se opõem a nós.",
+    excerpt:"“Love your enemies, bless them that curse you.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/3-ne/12.44"
+  },
+  {
+    key:"Confused / Need Clarity",
+    synonyms:["confused","confusion","uncertain","uncertainty","lost"],
+    ref:"2 Nephi 32:3,5",
+    why_en:"Feast on Christ’s words; the Spirit will show what to do.",
+    why_es:"Deleítate en las palabras de Cristo; el Espíritu mostrará qué hacer.",
+    why_pt:"Banqueteie-se nas palavras de Cristo; o Espírito mostrará o que fazer.",
+    excerpt:"“The words of Christ will tell you all things what ye should do.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/2-ne/32.3,5"
+  },
+  {
+    key:"Needing Guidance",
+    synonyms:["guidance","direction","which way","decide","decision"],
+    ref:"Alma 37:37",
+    why_en:"Counsel with the Lord; He will direct you for good.",
+    why_es:"Aconséjate con el Señor; Él te dirigirá para bien.",
+    why_pt:"Conselhe-se com o Senhor; Ele o dirigirá para o bem.",
+    excerpt:"“Counsel with the Lord in all thy doings, and he will direct thee.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/37.37"
+  },
+  {
+    key:"Doubting",
+    synonyms:["doubt","doubting","skeptical"],
+    ref:"Mormon 9:27",
+    why_en:"Invitation to doubt not but be believing.",
+    why_es:"Invitación a no dudar, sino creer.",
+    why_pt:"Convite a não duvidar, mas crer.",
+    excerpt:"“Doubt not, but be believing.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/morm/9.27"
+  },
+  {
+    key:"Overwhelmed / Stressed",
+    synonyms:["overwhelmed","stress","stressed","burdened","burned out","burnt out"],
+    ref:"Mosiah 24:14–15",
+    why_en:"The Lord can lighten burdens even before they’re removed.",
+    why_es:"El Señor puede aligerar los fardos aun antes de quitarlos.",
+    why_pt:"O Senhor pode aliviar os fardos mesmo antes de removê-los.",
+    excerpt:"“He did strengthen them that they could bear up their burdens with ease.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/mosiah/24.14-15"
+  },
+  {
+    key:"Weak / Inadequate",
+    synonyms:["weak","inadequate","not enough","incapable"],
+    ref:"Ether 12:27",
+    why_en:"He shows our weakness to make us humble and strong in Him.",
+    why_es:"Él muestra nuestra debilidad para hacernos humildes y fuertes en Él.",
+    why_pt:"Ele mostra nossa fraqueza para nos tornar humildes e fortes Nele.",
+    excerpt:"“If men come unto me… then will I make weak things become strong.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/ether/12.27"
+  },
+  {
+    key:"Grateful",
+    synonyms:["grateful","thankful","gratitude"],
+    ref:"Mosiah 2:41",
+    why_en:"Obedience and gratitude lead to a happy state.",
+    why_es:"La obediencia y la gratitud conducen a un estado feliz.",
+    why_pt:"Obediência e gratidão conduzem a um estado feliz.",
+    excerpt:"“Consider the blessed and happy state of those that keep the commandments.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/mosiah/2.41"
+  },
+  {
+    key:"Joyful",
+    synonyms:["joyful","joy","rejoicing","happy","happiness"],
+    ref:"2 Nephi 2:25",
+    why_en:"God’s plan centers on real joy in Christ.",
+    why_es:"El plan de Dios se centra en el gozo real en Cristo.",
+    why_pt:"O plano de Deus centra-se na verdadeira alegria em Cristo.",
+    excerpt:"“Men are, that they might have joy.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/2-ne/2.25"
+  },
+  {
+    key:"Need More Love / Charity",
+    synonyms:["unloving","hard heart","resentment","lack love","charity"],
+    ref:"Moroni 7:45,47–48",
+    why_en:"Charity is the pure love of Christ; pray to be filled with it.",
+    why_es:"La caridad es el amor puro de Cristo; ora para ser lleno de ella.",
+    why_pt:"Caridade é o puro amor de Cristo; ore para ser cheio dela.",
+    excerpt:"“Charity suffereth long… charity never faileth.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/moro/7.45,47-48"
+  },
+  {
+    key:"Lacking Confidence",
+    synonyms:["insecure","lack confidence","self-doubt","timid"],
+    ref:"Alma 26:12",
+    why_en:"Real strength and success come through God’s help.",
+    why_es:"La verdadera fortaleza y el éxito vienen con la ayuda de Dios.",
+    why_pt:"A verdadeira força e o sucesso vêm com a ajuda de Deus.",
+    excerpt:"“In his strength I can do all things.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/alma/26.12"
+  },
+  {
+    key:"Seeking First Things",
+    synonyms:["priorities","distracted","seek first","focus"],
+    ref:"3 Nephi 13:33",
+    why_en:"Put God’s kingdom first; other needs find their place.",
+    why_es:"Busca primero el reino de Dios; lo demás se ordena.",
+    why_pt:"Busque primeiro o reino de Deus; o resto se alinha.",
+    excerpt:"“Seek ye first the kingdom of God and his righteousness.”",
+    link:"https://www.churchofjesuschrist.org/study/scriptures/bofm/3-ne/13.33"
+  }
+];
+
+/* ============== i18n labels ============== */
+const UI = {
+  en:{
+    title:"Mood → Book of Mormon Scripture",
+    sub:"Pick a mood or type your own. Get a verse with a one-line why.",
+    lang:"Language",
+    choose:"Choose a mood",
+    type:"…or type your mood (e.g., “burned out”, “jealous”)",
+    daily:"Daily Verse (auto-show)",
+    note:"Excerpts are brief English snippets for fair use. Use “Open” to read the full passage in your selected language.",
+    footer:"Tip: Tap 🔊 to hear the title, why-this-fits note, and the verse reference.",
+    btn_recommend:"Recommend Scripture",
+    btn_random:"I’m Feeling Lucky",
+    btn_reset:"Reset",
+    btn_play:"🔊 Play",
+    btn_stop:"⏹ Stop",
+    btn_copy:"Copy Ref",
+    btn_open:"Open (official site)",
+    copied:"Copied!",
+    tts_warn:"Speech not available on this device."
+  },
+  es:{
+    title:"Ánimo → Escritura (Libro de Mormón)",
+    sub:"Elige un estado de ánimo o escribe el tuyo. Obtén un versículo con una breve razón.",
+    lang:"Idioma",
+    choose:"Elige un estado de ánimo",
+    type:"…o escribe tu estado (p. ej., “agotado”, “celoso”)",
+    daily:"Verso diario (auto-mostrar)",
+    note:"Los extractos son breves en inglés por uso justo. Usa “Abrir” para leer todo en tu idioma.",
+    footer:"Consejo: toca 🔊 para oír el título, el porqué y la referencia.",
+    btn_recommend:"Recomendar escritura",
+    btn_random:"Suerte",
+    btn_reset:"Restablecer",
+    btn_play:"🔊 Reproducir",
+    btn_stop:"⏹ Detener",
+    btn_copy:"Copiar ref.",
+    btn_open:"Abrir (sitio oficial)",
+    copied:"¡Copiado!",
+    tts_warn:"Voz no disponible en este dispositivo."
+  },
+  pt:{
+    title:"Humor → Escritura (Livro de Mórmon)",
+    sub:"Escolha um humor ou escreva o seu. Receba um versículo com um porquê curto.",
+    lang:"Idioma",
+    choose:"Escolha um humor",
+    type:"…ou digite seu humor (ex.: “esgotado”, “com ciúmes”)",
+    daily:"Verso diário (autoexibir)",
+    note:"Os trechos são curtos em inglês por uso justo. Use “Abrir” para ler tudo no seu idioma.",
+    footer:"Dica: toque 🔊 para ouvir o título, o motivo e a referência.",
+    btn_recommend:"Recomendar escritura",
+    btn_random:"Estou com sorte",
+    btn_reset:"Redefinir",
+    btn_play:"🔊 Reproduzir",
+    btn_stop:"⏹ Parar",
+    btn_copy:"Copiar ref.",
+    btn_open:"Abrir (site oficial)",
+    copied:"Copiado!",
+    tts_warn:"Voz não disponível neste dispositivo."
+  }
+};
+
+/* ============== Build UI ============== */
+const moodPick = document.getElementById('moodPick');
+MOODS.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=m.key; moodPick.appendChild(o); });
+
+const quickGrid = document.getElementById('quickGrid');
+MOODS.slice(0,12).forEach((m,i)=>{
+  const btn=document.createElement('button');
+  btn.className='quick-btn'; btn.textContent=m.key.split('/')[0].trim();
+  btn.addEventListener('click',()=>{ moodPick.value=i; showRecommendation(MOODS[i]); });
+  quickGrid.appendChild(btn);
+});
+
+/* ============== Elements ============== */
+const langSel=document.getElementById('lang');
+const moodCustom=document.getElementById('moodCustom');
+const recommendBtn=document.getElementById('recommendBtn');
+const randomBtn=document.getElementById('randomBtn');
+const clearBtn=document.getElementById('clearBtn');
+const speakBtn=document.getElementById('speakBtn');
+const stopBtn=document.getElementById('stopBtn');
+const dailyToggle=document.getElementById('dailyToggle');
+
+const resultEl=document.getElementById('result');
+const titleEl=document.getElementById('moodTitle');
+const whyEl=document.getElementById('why');
+const refEl=document.getElementById('ref');
+const quoteEl=document.getElementById('quote');
+const copyBtn=document.getElementById('copyBtn');
+const openBtn=document.getElementById('openBtn');
+const copiedEl=document.getElementById('copied');
+const ttsWarn=document.getElementById('ttsWarn');
+
+/* i18n text nodes */
+const nodes = {
+  t_title: document.getElementById('t_title'),
+  t_sub: document.getElementById('t_sub'),
+  t_lang_label: document.getElementById('t_lang_label'),
+  t_choose: document.getElementById('t_choose'),
+  t_type: document.getElementById('t_type'),
+  t_daily: document.getElementById('t_daily'),
+  t_note: document.getElementById('t_note'),
+  t_footer: document.getElementById('t_footer')
+};
+
+/* ============== Event wiring ============== */
+recommendBtn.addEventListener('click', ()=>{
+  const typed = moodCustom.value.trim().toLowerCase();
+  if(typed){
+    const match=findBestMatch(typed) || MOODS[0];
+    showRecommendation(match, typed);
+  }else{
+    const idx=parseInt(moodPick.value,10)||0;
+    showRecommendation(MOODS[idx]);
+  }
+});
+
+randomBtn.addEventListener('click', ()=>{
+  const idx=Math.floor(Math.random()*MOODS.length);
+  moodPick.value=idx; showRecommendation(MOODS[idx]);
+});
+
+clearBtn.addEventListener('click', ()=>{
+  moodPick.value=0; moodCustom.value=""; resultEl.hidden=true; copiedEl.hidden=true;
+  stopTTS();
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  const text = `${refEl.textContent} — ${quoteEl.textContent.replace(/^\u201C|\u201D$/g,'')}`;
+  try{ await navigator.clipboard.writeText(text); copiedEl.hidden=false; setTimeout(()=>copiedEl.hidden=true,1600); }catch(e){}
+});
+
+openBtn.addEventListener('click', ()=>{
+  const item=currentItem; if(!item) return;
+  window.open(localizedLink(item.link, langSel.value),'_blank');
+});
+
+langSel.addEventListener('change', ()=>{
+  applyI18n(langSel.value);
+  // Refresh current result to swap "why" language
+  if(currentItem && !resultEl.hidden) showRecommendation(currentItem, currentTyped);
+  // Persist preference
+  localStorage.setItem('moodScript_lang', langSel.value);
+});
+
+speakBtn.addEventListener('click', ()=> speakCurrent());
+stopBtn.addEventListener('click', stopTTS());
+
+dailyToggle.addEventListener('change', ()=>{
+  localStorage.setItem('moodScript_daily', dailyToggle.checked? '1':'0');
+  if(dailyToggle.checked){ showDaily(); }
+});
+
+/* ============== Matching ============== */
+function findBestMatch(typed){
+  const tokens=typed.split(/[^a-z]+/g).filter(Boolean);
+  let best=null, scoreBest=0;
+  for(const m of MOODS){
+    let s=0;
+    for(const syn of m.synonyms){
+      for(const t of tokens){
+        if(syn.includes(t) || t.includes(syn)) s += (syn===t?3:1);
+      }
+    }
+    if(s>scoreBest){ scoreBest=s; best=m; }
+  }
+  return best;
+}
+
+/* ============== Show recommendation ============== */
+let currentItem=null, currentTyped=null;
+function showRecommendation(item, typed=null){
+  currentItem=item; currentTyped=typed||null;
+  resultEl.hidden=false; copiedEl.hidden=true; ttsWarn.hidden=true;
+
+  const lang=langSel.value;
+  const why = lang==='es' ? item.why_es : lang==='pt' ? item.why_pt : item.why_en;
+
+  titleEl.textContent = typed ? `Mood: “${typed}” → ${item.key}` : item.key;
+  whyEl.textContent = why;
+  refEl.textContent = item.ref;
+  quoteEl.textContent = item.excerpt;
+}
+
+/* ============== Link localization ============== */
+function localizedLink(base, lang){
+  if(lang==='es') return base + "?lang=spa";
+  if(lang==='pt') return base + "?lang=por";
+  return base;
+}
+
+/* ============== Daily Verse rotation ============== */
+function showDaily(){
+  const dayKey = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const stored = JSON.parse(localStorage.getItem('moodScript_daily_item')||'{}');
+  if(stored.date===dayKey && stored.index!=null){
+    moodPick.value=stored.index; showRecommendation(MOODS[stored.index]);
+    return;
+  }
+  const idx = (new Date().getFullYear()*10000 + (new Date().getMonth()+1)*100 + new Date().getDate()) % MOODS.length;
+  localStorage.setItem('moodScript_daily_item', JSON.stringify({date:dayKey, index:idx}));
+  moodPick.value=idx; showRecommendation(MOODS[idx]);
+}
+
+/* ============== i18n apply ============== */
+function applyI18n(lang){
+  const t = UI[lang] || UI.en;
+  nodes.t_title.textContent = t.title;
+  nodes.t_sub.textContent = t.sub;
+  nodes.t_lang_label.textContent = t.lang;
+  nodes.t_choose.textContent = t.choose;
+  nodes.t_type.textContent = t.type;
+  nodes.t_daily.textContent = t.daily;
+  nodes.t_note.textContent = t.note;
+  nodes.t_footer.textContent = t.footer;
+
+  recommendBtn.textContent = t.btn_recommend;
+  randomBtn.textContent = t.btn_random;
+  clearBtn.textContent = t.btn_reset;
+  speakBtn.textContent = t.btn_play;
+  stopBtn.textContent = t.btn_stop;
+  copyBtn.textContent = t.btn_copy;
+  openBtn.textContent = t.btn_open;
+  copiedEl.textContent = t.copied;
+  ttsWarn.textContent = t.tts_warn;
+}
+
+/* ============== Text-to-Speech ============== */
+let voiceCache=[];
+function loadVoices(){
+  voiceCache = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+}
+if('speechSynthesis' in window){
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function pickVoice(lang){
+  if(!voiceCache.length) return null;
+  const pref = lang==='es' ? ['es-','es_','Spanish'] :
+               lang==='pt' ? ['pt-','pt_','Portuguese','Brasil'] :
+                              ['en-','en_','US','UK','English'];
+  // prefer matching BCP47 code starts
+  let v = voiceCache.find(v=>pref.some(p=>v.lang && v.lang.toLowerCase().startsWith(p.toLowerCase())));
+  if(!v) v = voiceCache.find(v=> (lang==='es' && /spanish/i.test(v.name)) || (lang==='pt' && /portuguese|brazil/i.test(v.name)) || (lang==='en' && /english/i.test(v.name)));
+  return v || voiceCache[0];
+}
+
+function speakCurrent(){
+  if(!('speechSynthesis' in window)){ ttsWarn.hidden=false; return; }
+  if(!currentItem){ ttsWarn.hidden=false; return; }
+  stopTTS();
+  const lang=langSel.value;
+  const t = UI[lang] || UI.en;
+  const why = lang==='es'? currentItem.why_es : lang==='pt'? currentItem.why_pt : currentItem.why_en;
+  const text =
+    (currentTyped ? `Estado: ${currentTyped}. ` : '') +
+    `${currentItem.key}. ${why} Referencia: ${currentItem.ref}.`;
+
+  const u = new SpeechSynthesisUtterance(text);
+  const v = pickVoice(lang);
+  if(v) u.voice = v;
+  u.lang = v?.lang || (lang==='es'?'es-ES': lang==='pt'?'pt-BR':'en-US');
+  u.rate = 1.0; u.pitch=1.0;
+  speechSynthesis.speak(u);
+}
+
+function stopTTS(){
+  return ()=>{ if('speechSynthesis' in window){ speechSynthesis.cancel(); } };
+}
+
+/* ============== Init ============== */
+(function init(){
+  const savedLang = localStorage.getItem('moodScript_lang') || 'en';
+  if(['en','es','pt'].includes(savedLang)) langSel.value=savedLang;
+  applyI18n(langSel.value);
+
+  const savedDaily = localStorage.getItem('moodScript_daily');
+  if(savedDaily!==null) dailyToggle.checked = savedDaily==='1';
+
+  if(dailyToggle.checked){ showDaily(); }
+  else { showRecommendation(MOODS[0]); }
+})();
+</script>
+</body>
+</html>
